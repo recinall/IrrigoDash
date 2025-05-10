@@ -18,7 +18,8 @@ app = Dash(
     __name__,
     server=server,
     routes_pathname_prefix='/dash/',
-    external_stylesheets=['https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css']
+    external_stylesheets=['https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css'],
+    suppress_callback_exceptions=True
 )
 
 # Funzione per caricare i dati dal file CSV
@@ -256,7 +257,7 @@ def update_focus_graph(data, start_date, end_date, focused_sensor):
         ),
         html.Button(
             'Chiudi focus', 
-            id='btn-close-focus', 
+            id='btn-close-focus',
             className='btn btn-outline-secondary mt-2',
             n_clicks=0
         )
