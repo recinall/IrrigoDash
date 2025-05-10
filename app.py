@@ -45,13 +45,16 @@ SENSORS = {
 
 # Funzione per creare un grafico per un sensore specifico
 def create_sensor_graph(df, sensor_id, sensor_name, is_focused=False):
-    if df.empty:
+    if df.empty or sensor_id not in df.columns:
         return go.Figure().update_layout(title=f"Nessun dato disponibile per {sensor_name}")
     
     height = 400 if is_focused else 250
     
+    # Assicuriamoci che i dati siano validi
+    valid_df = df[['timestamp', sensor_id]].dropna()
+    
     fig = px.line(
-        df,
+        valid_df,
         x='timestamp',
         y=sensor_id,
         title=sensor_name,
