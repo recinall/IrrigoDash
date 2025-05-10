@@ -86,6 +86,12 @@ def load_data():
     csv_path = os.path.expanduser('~/telemetria.csv')
     try:
         df = pd.read_csv(csv_path)
+        # Trasformazione da wide a long format
+        df = df.melt(
+            id_vars=['timestamp', 'pumpRunning', 'outputValveOpen'],
+            var_name='sensor',
+            value_name='value'
+        )
     except Exception as e:
         print(f"Errore caricamento CSV: {e}")
         df = pd.DataFrame()
@@ -117,11 +123,12 @@ app.layout = html.Div(className='container p-4', children=[
     Input('interval-update', 'n_intervals')
 )
 def update_dropdown(n):
-    df = load_data()
-    if df.empty or 'sensor' not in df.columns:
-        return []
-    sensors = sorted(df['sensor'].unique())
-    return [{'label': s, 'value': s} for s in sensors]
+    return [
+        {'label': 'Pressione', 'value': 'pressure'},
+        {'label': 'Temperatura', 'value': 'temperature'},
+        {'label': 'Umidità', 'value': 'humidity'},
+        {'label': 'Pressione Ambientale', 'value': 'env_pressure'}
+    ]
 ```
 - Popola il menu a tendina con i sensori disponibili
 - Si aggiorna automaticamente ad ogni intervallo
@@ -135,26 +142,47 @@ def update_dropdown(n):
 )
 def update_graph(selected_sensor, n):
     df = load_data()
-    if df.empty or selected_sensor is None or selected_sensor not in df['sensor'].unique():
-        return px.line(title="Nessun dato disponibile")
-    # Filtro per il sensore selezionato
+    
+    if df.empty or not selected_sensor:
+        return px.line(title="Seleziona un sensore dal menu")
+    
     dff = df[df['sensor'] == selected_sensor]
-    # Converto timestamp se esiste
-    if 'timestamp' in dff.columns:
+    
+    try:
         dff['timestamp'] = pd.to_datetime(dff['timestamp'])
-        x_field = 'timestamp'
-    else:
-        dff = dff.reset_index()
-        x_field = 'index'
-    # Costruisco il grafico
-    fig = px.line(
-        dff,
-        x=x_field,
-        y='value',
-        title=f"Valori Telemetria: {selected_sensor}",
-        labels={'value': 'Misura', x_field: 'Tempo'}
+        fig = px.line(
+            dff,
+            x='timestamp',
+            y='value',
+            title=f"Andamento {selected_sensor}",
+            labels={'value': 'Valore', 'timestamp': 'Ora'},
+            color_discrete_sequence=['#17a2b8']
+        )
+    except Exception as e:
+        print(f"Errore generazione grafico: {e}")
+        return px.line(title="Errore nei dati")
+    
+    fig.update_layout(
+        transition_duration=500,
+        plot_bgcolor='white',
+        margin={'t': 40},
+        hovermode='x unified'
     )
-    fig.update_layout(transition_duration=500)
+    
+    fig.update_xaxes(
+        title_text='Ora',
+        showgrid=True, 
+        gridwidth=1, 
+        gridcolor='#eeeeee'
+    )
+    
+    fig.update_yaxes(
+        title_text='Valore',
+        showgrid=True, 
+        gridwidth=1, 
+        gridcolor='#eeeeee'
+    )
+    
     return fig
 ```
 - Aggiorna il grafico in base al sensore selezionato
