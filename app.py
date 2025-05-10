@@ -50,18 +50,14 @@ SENSORS = {
 }
 
 # Funzione per creare un grafico per un sensore specifico
-def create_sensor_graph(df, sensor_id, sensor_name, is_focused=False):
-    if df.empty or sensor_id not in df.columns:
+def create_sensor_graph(sensor_df, sensor_id, sensor_name, is_focused=False):
+    if sensor_df.empty or sensor_id not in sensor_df.columns:
         return go.Figure().update_layout(title=f"Nessun dato disponibile per {sensor_name}")
     
     height = 400 if is_focused else 250
     
-    # Assicuriamoci che i dati siano validi
-    valid_df = df[['timestamp', sensor_id]].dropna()
-    valid_df[sensor_id] = pd.to_numeric(valid_df[sensor_id], errors='coerce')
-    
     fig = px.line(
-        valid_df,
+        sensor_df,
         x='timestamp',
         y=sensor_id,
         title=sensor_name,
@@ -213,10 +209,15 @@ def update_all_graphs(data, start_date, end_date, focused_sensor):
     # Crea un grafico per ogni sensore
     graphs = []
     for sensor_id, sensor_name in SENSORS.items():
+        # Creare un dataframe specifico per ogni sensore
+        sensor_df = df[['timestamp', sensor_id]].copy()
+        sensor_df[sensor_id] = pd.to_numeric(sensor_df[sensor_id], errors='coerce')
+        sensor_df = sensor_df.dropna()
+        
         graphs.append(html.Div(className='col-md-6 mb-4', children=[
             dcc.Graph(
                 id={'type': 'sensor-graph', 'index': sensor_id},
-                figure=create_sensor_graph(df, sensor_id, sensor_name)
+                figure=create_sensor_graph(sensor_df, sensor_id, sensor_name)
             )
         ]))
     
@@ -242,11 +243,16 @@ def update_focus_graph(data, start_date, end_date, focused_sensor):
         end_date = pd.to_datetime(end_date) + timedelta(days=1) - timedelta(seconds=1)  # Fine della giornata
         df = df[(df['timestamp'] >= start_date) & (df['timestamp'] <= end_date)]
     
+    # Creare un dataframe specifico per il sensore in focus
+    sensor_df = df[['timestamp', focused_sensor]].copy()
+    sensor_df[focused_sensor] = pd.to_numeric(sensor_df[focused_sensor], errors='coerce')
+    sensor_df = sensor_df.dropna()
+    
     return [
         html.H3(f"Focus su: {SENSORS[focused_sensor]}", className='mb-3'),
         dcc.Graph(
             id='focus-graph',
-            figure=create_sensor_graph(df, focused_sensor, SENSORS[focused_sensor], is_focused=True)
+            figure=create_sensor_graph(sensor_df, focused_sensor, SENSORS[focused_sensor], is_focused=True)
         ),
         html.Button(
             'Chiudi focus', 
