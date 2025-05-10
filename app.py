@@ -1,7 +1,7 @@
 import os
 import flask
 import pandas as pd
-from dash import Dash, html, dcc, callback, Input, Output, State
+from dash import Dash, html, dcc, callback, Input, Output, State, callback_context, no_update
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
@@ -251,7 +251,7 @@ def update_focus_graph(data, start_date, end_date, focused_sensor):
 def close_focus(n_clicks):
     if n_clicks > 0:
         return None
-    return dash.no_update
+    return no_update
 
 # Avvio dell'applicazione
 if __name__ == '__main__':
