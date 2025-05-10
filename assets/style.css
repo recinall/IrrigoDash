@@ -4,17 +4,23 @@ body {
     background-color: #f8f9fa;
 }
 
-.container {
+.container-fluid {
     background-color: white;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     margin-top: 20px;
     margin-bottom: 20px;
+    max-width: 1400px;
 }
 
 h1 {
     color: #343a40;
     font-weight: 600;
+}
+
+h3 {
+    color: #495057;
+    font-weight: 500;
 }
 
 .dash-dropdown {
@@ -23,5 +29,30 @@ h1 {
 
 /* Stili per il grafico */
 .js-plotly-plot {
-    margin-top: 20px;
+    margin-top: 10px;
+    border: 1px solid #eaeaea;
+    border-radius: 4px;
+}
+
+/* Stili per i controlli di data */
+.DateInput_input {
+    font-size: 14px;
+    padding: 6px 10px;
+}
+
+.DateRangePickerInput {
+    border-radius: 4px;
+}
+
+/* Stili per i pulsanti */
+.btn {
+    font-size: 14px;
+}
+
+/* Stili per il focus container */
+#focus-container {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
 }
