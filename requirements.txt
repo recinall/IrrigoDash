@@ -1,0 +1,5 @@
+Flask>=2.0
+dash>=2.0
+pandas
+plotly
+dash-bootstrap-components
