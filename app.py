@@ -28,6 +28,12 @@ def load_data():
         df = pd.read_csv(csv_path)
         # Converti timestamp in datetime
         df['timestamp'] = pd.to_datetime(df['timestamp'])
+        
+        # Converti tutte le colonne dei sensori a float
+        for sensor in SENSORS.keys():
+            if sensor in df.columns:
+                df[sensor] = pd.to_numeric(df[sensor], errors='coerce')
+        
         # Ordina per timestamp
         df = df.sort_values('timestamp')
     except Exception as e:
@@ -52,6 +58,7 @@ def create_sensor_graph(df, sensor_id, sensor_name, is_focused=False):
     
     # Assicuriamoci che i dati siano validi
     valid_df = df[['timestamp', sensor_id]].dropna()
+    valid_df[sensor_id] = pd.to_numeric(valid_df[sensor_id], errors='coerce')
     
     fig = px.line(
         valid_df,
@@ -74,14 +81,18 @@ def create_sensor_graph(df, sensor_id, sensor_name, is_focused=False):
         title_text='Ora',
         showgrid=True, 
         gridwidth=1, 
-        gridcolor='#eeeeee'
+        gridcolor='#eeeeee',
+        type='date',
+        tickformat='%H:%M'
     )
     
     fig.update_yaxes(
         title_text='Valore',
         showgrid=True, 
         gridwidth=1, 
-        gridcolor='#eeeeee'
+        gridcolor='#eeeeee',
+        type='linear',
+        autorange=True
     )
     
     return fig
