@@ -49,6 +49,9 @@ def process_data(start_date=None, end_date=None):
         
         for sensor in SENSORS.keys():
             if sensor in df.columns:
+                # Prepara dati per i grafici
+                sensor_df = df.dropna(subset=[sensor])
+                
                 # Calcola statistiche
                 sensor_values = df[sensor].dropna()
                 if not sensor_values.empty:
@@ -60,9 +63,6 @@ def process_data(start_date=None, end_date=None):
                     }
                 else:
                     stats[sensor] = {'min': 0, 'max': 0, 'mean': 0}
-                
-                # Prepara dati per i grafici
-                sensor_df = df.dropna(subset=[sensor])
                 
                 # Campiona se ci sono troppi punti
                 if len(sensor_df) > MAX_POINTS:
