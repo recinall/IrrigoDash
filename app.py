@@ -8,10 +8,10 @@ app = Flask(__name__)
 
 # Definizione dei sensori da visualizzare
 SENSORS = {
-    'pressure': 'Pressione',
-    'temperature': 'Temperatura',
-    'humidity': 'Umidità',
-    'env_pressure': 'Pressione Ambientale'
+    'pressure': {'name': 'Pressione', 'unit': 'hPa'},
+    'temperature': {'name': 'Temperatura', 'unit': '°C'},
+    'humidity': {'name': 'Umidità', 'unit': '%'},
+    'env_pressure': {'name': 'Pressione Ambientale', 'unit': 'hPa'}
 }
 
 # Percorso del file CSV
@@ -170,14 +170,14 @@ if __name__ == '__main__':
                     <div class="col-md-3 mb-2">
                         <div class="row align-items-center">
                             <div class="col-6">
-                                <h4 class="mb-0">{{ "%.2f"|format(sensor_stats.current) }}</h4>
-                                <small class="text-muted">{{ sensors[sensor] }}</small>
+                                <h4 class="mb-0">{{ "%.2f"|format(sensor_stats.current) }} <small>{{ sensors[sensor].unit }}</small></h4>
+                                <small class="text-muted">{{ sensors[sensor].name }}</small>
                             </div>
                             <div class="col-6">
                                 <div class="text-muted" style="font-size:0.8em">
-                                    Min: {{ "%.2f"|format(sensor_stats.min) }}<br>
-                                    Max: {{ "%.2f"|format(sensor_stats.max) }}<br>
-                                    Media: {{ "%.2f"|format(sensor_stats.mean) }}
+                                    Min: {{ "%.2f"|format(sensor_stats.min) }} {{ sensors[sensor].unit }}<br>
+                                    Max: {{ "%.2f"|format(sensor_stats.max) }} {{ sensors[sensor].unit }}<br>
+                                    Media: {{ "%.2f"|format(sensor_stats.mean) }} {{ sensors[sensor].unit }}
                                 </div>
                             </div>
                         </div>
@@ -212,8 +212,8 @@ if __name__ == '__main__':
                     <label class="form-label">Focus su sensore:</label>
                     <select id="sensor-focus" class="form-select mb-2" style="max-width: 300px;">
                         <option value="">Tutti i sensori</option>
-                        {% for id, name in sensors.items() %}
-                            <option value="{{ id }}" {% if id == focused_sensor %}selected{% endif %}>{{ name }}</option>
+                        {% for id, sensor_info in sensors.items() %}
+                            <option value="{{ id }}" {% if id == focused_sensor %}selected{% endif %}>{{ sensor_info.name }} ({{ sensor_info.unit }})</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -222,7 +222,7 @@ if __name__ == '__main__':
             {% if focused_sensor %}
                 <!-- Grafico in focus -->
                 <div class="mt-4">
-                    <h3 class="mb-3">Focus su: {{ sensors[focused_sensor] }}</h3>
+                    <h3 class="mb-3">Focus su: {{ sensors[focused_sensor].name }} ({{ sensors[focused_sensor].unit }})</h3>
                     <div class="focus-container" id="chart-focus"></div>
                     <button id="btn-close-focus" class="btn btn-outline-secondary mt-2">Chiudi focus</button>
                 </div>
@@ -264,6 +264,7 @@ if __name__ == '__main__':
         
         // Funzione per creare un grafico
         function createChart(containerId, sensorId, sensorName, isFocus = false) {
+            const unit = sensors[sensorId].unit || '';
             const container = document.getElementById(containerId);
             if (!container) return;
             
@@ -306,7 +307,7 @@ if __name__ == '__main__':
                     plugins: {
                         title: {
                             display: true,
-                            text: sensorName,
+                            text: sensorName + ' (' + unit + ')',
                             font: {
                                 size: 16
                             }
@@ -334,7 +335,7 @@ if __name__ == '__main__':
                         y: {
                             title: {
                                 display: true,
-                                text: sensorName
+                                text: sensorName + ' (' + unit + ')'
                             },
                             beginAtZero: false
                         }
@@ -403,11 +404,11 @@ if __name__ == '__main__':
         // Inizializzazione all'avvio della pagina
         document.addEventListener('DOMContentLoaded', () => {
             if (focusedSensor && chartData[focusedSensor]) {
-                createChart('chart-focus', focusedSensor, sensors[focusedSensor], true);
+                createChart('chart-focus', focusedSensor, sensors[focusedSensor].name, true);
             } else {
-                for (const [sensorId, sensorName] of Object.entries(sensors)) {
+                for (const [sensorId, sensorInfo] of Object.entries(sensors)) {
                     if (chartData[sensorId]) {
-                        createChart(`chart-${sensorId}`, sensorId, sensorName);
+                        createChart(`chart-${sensorId}`, sensorId, sensorInfo.name);
                     }
                 }
             }
