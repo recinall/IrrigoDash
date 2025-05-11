@@ -75,10 +75,13 @@ def process_data(start_date=None, end_date=None):
                     'values': sensor_df[sensor].tolist()
                 }
         
+        last_update = df['timestamp'].max() if not df.empty else None
+        
         return {
             'stats': stats,
             'chart_data': chart_data,
-            'data_available': True
+            'data_available': True,
+            'last_update': last_update
         }
     except Exception as e:
         print(f"Errore nel caricamento o elaborazione dei dati: {e}")
@@ -117,7 +120,8 @@ def index():
                           date_ranges=date_ranges,
                           start_date=start_date or date_ranges['today'],
                           end_date=end_date or date_ranges['today'],
-                          focused_sensor=focused_sensor)
+                          focused_sensor=focused_sensor,
+                          last_update=data.get('last_update'))
 
 if __name__ == '__main__':
     # Crea la directory templates se non esiste
@@ -180,7 +184,14 @@ if __name__ == '__main__':
                     </div>
                     {% endfor %}
                 </div>
-                <div class="mt-2 text-muted">Ultimo aggiornamento: {{ now }}</div>
+                <div class="mt-2 text-muted">
+                    Ultimo aggiornamento: 
+                    {% if last_update %}
+                        {{ last_update.strftime('%Y-%m-%d %H:%M:%S') }}
+                    {% else %}
+                        Nessun dato disponibile
+                    {% endif %}
+                </div>
             </div>
             
             <!-- Controlli -->
