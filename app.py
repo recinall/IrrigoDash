@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 # Definizione dei sensori da visualizzare
 SENSORS = {
-    'pressure': {'name': 'Pressione', 'unit': 'hPa'},
+    'pressure': {'name': 'Pressione', 'unit': 'Bar'},
     'temperature': {'name': 'Temperatura', 'unit': '°C'},
     'humidity': {'name': 'Umidità', 'unit': '%'},
     'env_pressure': {'name': 'Pressione Ambientale', 'unit': 'hPa'}
