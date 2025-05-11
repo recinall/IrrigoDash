@@ -55,7 +55,8 @@ def process_data(start_date=None, end_date=None):
                     stats[sensor] = {
                         'min': float(sensor_values.min()),
                         'max': float(sensor_values.max()),
-                        'mean': float(sensor_values.mean())
+                        'mean': float(sensor_values.mean()),
+                        'current': float(sensor_df[sensor].iloc[-1]) if not sensor_df.empty else 0
                     }
                 else:
                     stats[sensor] = {'min': 0, 'max': 0, 'mean': 0}
@@ -129,7 +130,7 @@ if __name__ == '__main__':
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Telemetria</title>
+    <title>Irrigo Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -160,9 +161,25 @@ if __name__ == '__main__':
         {% if data_available %}
             <!-- Debug info -->
             <div class="alert alert-info mb-3">
-                {% for sensor, sensor_stats in stats.items() %}
-                    <div>{{ sensors[sensor] }}: Min={{ "%.2f"|format(sensor_stats.min) }}, Max={{ "%.2f"|format(sensor_stats.max) }}, Media={{ "%.2f"|format(sensor_stats.mean) }}</div>
-                {% endfor %}
+                <div class="row">
+                    {% for sensor, sensor_stats in stats.items() %}
+                    <div class="col-md-3 mb-2">
+                        <div class="row align-items-center">
+                            <div class="col-6">
+                                <h4 class="mb-0">{{ "%.2f"|format(sensor_stats.current) }}</h4>
+                                <small class="text-muted">{{ sensors[sensor] }}</small>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-muted" style="font-size:0.8em">
+                                    Min: {{ "%.2f"|format(sensor_stats.min) }}<br>
+                                    Max: {{ "%.2f"|format(sensor_stats.max) }}<br>
+                                    Media: {{ "%.2f"|format(sensor_stats.mean) }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
                 <div class="mt-2 text-muted">Ultimo aggiornamento: {{ now }}</div>
             </div>
             
