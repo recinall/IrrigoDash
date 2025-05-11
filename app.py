@@ -327,13 +327,8 @@ if __name__ == '__main__':
                                 text: 'Data'
                             },
                             ticks: {
-                                callback: function(value) {
-                                    // Divide data e ora su due righe
-                                    const parts = value.split(' ');
-                                    return parts.length === 2 ? parts[0] + '\n' + parts[1] : value;
-                                },
-                                maxRotation: 0,  // Elimina la rotazione
-                                minRotation: 0,
+                                maxRotation: 45,
+                                minRotation: 45,
                                 maxTicksLimit: isFocus ? 10 : 6
                             }
                         },
