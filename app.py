@@ -156,7 +156,7 @@ if __name__ == '__main__':
 </head>
 <body>
     <div class="container-fluid p-4">
-        <h1 class="text-center mb-4">Dashboard Telemetria</h1>
+        <h1 class="text-center mb-4">Irrigo Dashboard</h1>
         
         {% if data_available %}
             <!-- Debug info -->
