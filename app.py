@@ -1,26 +1,10 @@
 import os
-import flask
 import pandas as pd
 import numpy as np
-from dash import Dash, html, dcc, callback, Input, Output, State, callback_context, no_update
-import plotly.graph_objects as go
 from datetime import datetime, timedelta
+from flask import Flask, render_template, request, redirect
 
-# Inizializzazione del server Flask
-server = flask.Flask(__name__)
-
-@server.route('/')
-def index():
-    return flask.redirect('/dash/')
-
-# Inizializzazione dell'applicazione Dash
-app = Dash(
-    __name__,
-    server=server,
-    routes_pathname_prefix='/dash/',
-    external_stylesheets=['https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css'],
-    suppress_callback_exceptions=True
-)
+app = Flask(__name__)
 
 # Definizione dei sensori da visualizzare
 SENSORS = {
@@ -30,365 +14,388 @@ SENSORS = {
     'env_pressure': 'Pressione Ambientale'
 }
 
-# Funzione per caricare i dati dal file CSV
-def load_data():
-    csv_path = os.path.expanduser('~/telemetria.csv')
+# Percorso del file CSV
+CSV_PATH = os.path.expanduser('~/telemetria.csv')
+
+# Massimo numero di punti da visualizzare per sensore
+MAX_POINTS = 300
+
+# Funzione per caricare e processare i dati
+def process_data(start_date=None, end_date=None):
     try:
-        df = pd.read_csv(csv_path)
+        # Carica il CSV
+        df = pd.read_csv(CSV_PATH)
         
         # Converti timestamp in datetime
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         
-        # Converti tutte le colonne dei sensori a float
+        # Converti colonne dei sensori a float
         for sensor in SENSORS.keys():
             if sensor in df.columns:
                 df[sensor] = pd.to_numeric(df[sensor], errors='coerce')
         
         # Ordina per timestamp
         df = df.sort_values('timestamp')
-        return df
-    except Exception as e:
-        print(f"Errore caricamento CSV: {e}")
-        return pd.DataFrame()
-
-# Funzione per creare un grafico per un sensore specifico
-def create_sensor_graph(df, sensor_id, sensor_name, is_focused=False):
-    if df.empty or sensor_id not in df.columns:
-        return go.Figure().update_layout(title=f"Nessun dato disponibile per {sensor_name}")
-    
-    # L'altezza è ora controllata dal contenitore esterno, non dal grafico
-    # height = 400 if is_focused else 250
-    
-    # Estrai esplicitamente i dati come liste Python per evitare problemi di indice
-    x_values = df['timestamp'].tolist()
-    y_values = df[sensor_id].tolist()
-    
-    # Log per debug
-    print(f"Creazione grafico per {sensor_name}")
-    print(f"Numero di valori X: {len(x_values)}")
-    print(f"Numero di valori Y: {len(y_values)}")
-    if len(y_values) > 0:
-        print(f"Esempio primi 3 valori Y: {y_values[:3]}")
-    
-    # IMPORTANTE: Usa go.Figure e go.Scatter direttamente per avere controllo totale
-    fig = go.Figure()
-    
-    # Aggiungi la traccia con i dati espliciti X e Y
-    fig.add_trace(
-        go.Scatter(
-            x=x_values,       # Usa la lista esplicita dei timestamp
-            y=y_values,       # Usa la lista esplicita dei valori
-            mode='lines',     # Tipo di visualizzazione: linee
-            line=dict(color='#17a2b8', width=2),
-            name=sensor_name
-        )
-    )
-    
-    # Calcola il range Y basato sui dati effettivi
-    if y_values:
-        valid_y_values = [y for y in y_values if y is not None and not np.isnan(y)]
-        if valid_y_values:
-            min_y = min(valid_y_values)
-            max_y = max(valid_y_values)
-            padding = (max_y - min_y) * 0.1 if max_y > min_y else 1
-            y_range = [min_y - padding, max_y + padding]
-        else:
-            y_range = [0, 1]  # Default se non ci sono dati validi
-    else:
-        y_range = [0, 1]  # Default se non ci sono dati
-    
-    # Impostazioni di layout con range Y fisso e senza specificare altezza
-    fig.update_layout(
-        title=sensor_name,
-        # Rimuove height per adattarsi al contenitore
-        margin=dict(l=40, r=20, t=40, b=40),
-        paper_bgcolor='white',
-        plot_bgcolor='white',
-        hovermode='x unified',
-        transition_duration=0,  # Disabilita animazioni
-        uirevision='constant',  # Mantiene lo stato del grafico tra gli aggiornamenti
-        autosize=True,         # Permette al grafico di adattarsi al contenitore
-    )
-    
-    # Impostazioni asse X
-    fig.update_xaxes(
-        title='Ora',
-        showgrid=True,
-        gridwidth=1,
-        gridcolor='#eeeeee',
-        tickformat='%Y-%m-%d\n%H:%M:%S'
-    )
-    
-    # Impostazioni asse Y con range FISSO
-    fig.update_yaxes(
-        title=sensor_name,
-        showgrid=True,
-        gridwidth=1,
-        gridcolor='#eeeeee',
-        zeroline=True,
-        range=y_range,          # Imposta un range fisso basato sui dati
-        fixedrange=False,       # Permette zoom manuale
-        autorange=False,        # Disabilita autorange per impedire il crescere automatico
-    )
-    
-    return fig
-
-# Layout dell'applicazione
-app.layout = html.Div(className='container-fluid p-4', style={'height': '100vh', 'overflowY': 'auto'}, children=[
-    html.H1("Dashboard Telemetria", className='text-center mb-4'),
-    
-    # Visualizzazione di debug
-    html.Div(id='debug-info', className='alert alert-info mb-3'),
-    
-    # Controlli
-    html.Div(className='row mb-4', children=[
-        # Selettore intervallo temporale
-        html.Div(className='col-md-6', children=[
-            html.Label("Seleziona intervallo temporale:", className='form-label'),
-            html.Div(className='d-flex flex-wrap', children=[
-                dcc.DatePickerRange(
-                    id='date-range',
-                    className='me-2 mb-2',
-                    display_format='DD/MM/YYYY',
-                    start_date_placeholder_text='Data inizio',
-                    end_date_placeholder_text='Data fine',
-                    clearable=True,
-                ),
-                html.Button('Oggi', id='btn-today', className='btn btn-outline-primary me-2 mb-2'),
-                html.Button('Ultima settimana', id='btn-week', className='btn btn-outline-primary me-2 mb-2'),
-                html.Button('Ultimo mese', id='btn-month', className='btn btn-outline-primary mb-2')
-            ])
-        ]),
         
-        # Selettore sensore per focus
-        html.Div(className='col-md-6', children=[
-            html.Label("Focus su sensore:", className='form-label'),
-            dcc.Dropdown(
-                id='sensor-focus',
-                options=[{'label': name, 'value': id} for id, name in SENSORS.items()],
-                placeholder='Tutti i sensori',
-                clearable=True,
-                style={'width': '100%'}
-            )
-        ])
-    ]),
-    
-    # Contenitore per i grafici con altezza fissa e scroll interno
-    html.Div(id='graphs-container', className='row', style={'minHeight': '400px', 'maxHeight': '1200px'}),
-    
-    # Grafico in focus (quando selezionato) con altezza fissa
-    html.Div(id='focus-container', className='mt-4', style={'minHeight': '100px', 'maxHeight': '600px'}),
-    
-    # Intervallo di aggiornamento
-    dcc.Interval(id='interval-update', interval=60*1000, n_intervals=0),
-    
-    # Store per i dati
-    dcc.Store(id='telemetry-data')
-])
-
-# Callback per caricare i dati e mostrare debug info
-@callback(
-    [Output('telemetry-data', 'data'),
-     Output('debug-info', 'children')],
-    Input('interval-update', 'n_intervals')
-)
-def update_data(n):
-    df = load_data()
-    
-    # Info di debug
-    debug_info = []
-    if not df.empty:
+        # Filtra per date se specificato
+        if start_date and end_date:
+            start_date = pd.to_datetime(start_date)
+            end_date = pd.to_datetime(end_date) + timedelta(days=1) - timedelta(seconds=1)
+            df = df[(df['timestamp'] >= start_date) & (df['timestamp'] <= end_date)]
+        
+        # Calcola le statistiche per ogni sensore
+        stats = {}
+        chart_data = {}
+        
         for sensor in SENSORS.keys():
             if sensor in df.columns:
-                # Calcola statistiche solo se ci sono valori validi
-                if not df[sensor].isna().all():
-                    stats = {
-                        'min': float(df[sensor].min()),
-                        'max': float(df[sensor].max()),
-                        'media': float(df[sensor].mean())
+                # Calcola statistiche
+                sensor_values = df[sensor].dropna()
+                if not sensor_values.empty:
+                    stats[sensor] = {
+                        'min': float(sensor_values.min()),
+                        'max': float(sensor_values.max()),
+                        'mean': float(sensor_values.mean())
                     }
-                    debug_info.append(html.Div(f"{SENSORS[sensor]}: Min={stats['min']:.2f}, Max={stats['max']:.2f}, Media={stats['media']:.2f}"))
-        
-        # Converti per storage
-        data_json = df.to_json(date_format='iso', orient='split')
-        return data_json, debug_info
-    else:
-        return None, html.Div("Nessun dato caricato", className="text-danger")
-
-# Callback per i pulsanti di intervallo temporale
-@callback(
-    [Output('date-range', 'start_date'),
-     Output('date-range', 'end_date')],
-    [Input('btn-today', 'n_clicks'),
-     Input('btn-week', 'n_clicks'),
-     Input('btn-month', 'n_clicks')],
-    prevent_initial_call=True
-)
-def update_date_range(today_clicks, week_clicks, month_clicks):
-    ctx = callback_context
-    if not ctx.triggered:
-        return [None, None]
-    
-    button_id = ctx.triggered[0]['prop_id'].split('.')[0]
-    
-    today = datetime.now().date()
-    
-    if button_id == 'btn-today':
-        return [today, today]
-    elif button_id == 'btn-week':
-        return [today - timedelta(days=7), today]
-    elif button_id == 'btn-month':
-        return [today - timedelta(days=30), today]
-    
-    return [None, None]
-
-# Callback per visualizzare tutti i grafici
-@callback(
-    Output('graphs-container', 'children'),
-    [Input('telemetry-data', 'data'),
-     Input('date-range', 'start_date'),
-     Input('date-range', 'end_date'),
-     Input('sensor-focus', 'value')]
-)
-def update_all_graphs(data, start_date, end_date, focused_sensor):
-    if not data:
-        return [html.Div("Nessun dato disponibile", className='col-12 text-center p-5')]
-    
-    try:
-        # Carica dati dallo store
-        df = pd.read_json(data, orient='split')
-        
-        # Assicurati che timestamp sia datetime
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        
-        # Filtra per intervallo di date se specificato
-        if start_date and end_date:
-            start_date = pd.to_datetime(start_date)
-            end_date = pd.to_datetime(end_date) + timedelta(days=1) - timedelta(seconds=1)
-            df = df[(df['timestamp'] >= start_date) & (df['timestamp'] <= end_date)]
-        
-        # Se c'è un sensore in focus, non mostrare i grafici qui
-        if focused_sensor:
-            return []
-        
-        # Crea un grafico per ogni sensore
-        graphs = []
-        for sensor_id, sensor_name in SENSORS.items():
-            if sensor_id in df.columns:
-                # Filtra righe con valori validi per questo sensore
-                sensor_df = df.dropna(subset=[sensor_id]).copy()
-                
-                if not sensor_df.empty:
-                    # Print per debug
-                    print(f"Dati per grafico {sensor_name}:")
-                    print(f"Numero di righe: {len(sensor_df)}")
-                    if len(sensor_df) > 0:
-                        print(f"Esempio primi 3 valori: {sensor_df[sensor_id].head(3).tolist()}")
-                    
-                    # Impostazione delle dimensioni fisse del grafico
-                    graphs.append(html.Div(className='col-md-6 mb-4', style={'height': '300px'}, children=[
-                        dcc.Graph(
-                            id={'type': 'sensor-graph', 'index': sensor_id},
-                            figure=create_sensor_graph(sensor_df, sensor_id, sensor_name),
-                            config={
-                                'displayModeBar': True,
-                                'scrollZoom': True  # Abilita zoom con scroll
-                            },
-                            style={'height': '100%'}  # Forza l'altezza del grafico
-                        )
-                    ]))
                 else:
-                    graphs.append(html.Div(className='col-md-6 mb-4', style={'height': '300px'}, children=[
-                        html.Div(f"Nessun dato valido per {sensor_name}", className='alert alert-warning p-3')
-                    ]))
-        
-        return graphs
-    
-    except Exception as e:
-        print(f"Errore nell'aggiornamento dei grafici: {e}")
-        import traceback
-        traceback.print_exc()
-        return [html.Div(f"Errore nell'elaborazione dei dati: {str(e)}", className='col-12 alert alert-danger')]
-
-# Callback per il grafico in focus
-@callback(
-    Output('focus-container', 'children'),
-    [Input('telemetry-data', 'data'),
-     Input('date-range', 'start_date'),
-     Input('date-range', 'end_date'),
-     Input('sensor-focus', 'value')]
-)
-def update_focus_graph(data, start_date, end_date, focused_sensor):
-    if not data or not focused_sensor:
-        return []
-    
-    try:
-        # Carica dati dallo store
-        df = pd.read_json(data, orient='split')
-        
-        # Assicurati che timestamp sia datetime
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        
-        # Filtra per intervallo di date se specificato
-        if start_date and end_date:
-            start_date = pd.to_datetime(start_date)
-            end_date = pd.to_datetime(end_date) + timedelta(days=1) - timedelta(seconds=1)
-            df = df[(df['timestamp'] >= start_date) & (df['timestamp'] <= end_date)]
-        
-        # Verifica che il sensore sia nei dati
-        if focused_sensor in df.columns:
-            # Filtra righe con valori validi per questo sensore
-            sensor_df = df.dropna(subset=[focused_sensor]).copy()
-            
-            if not sensor_df.empty:
-                # Print per debug
-                print(f"Focus su {SENSORS[focused_sensor]}:")
-                print(f"Numero di righe: {len(sensor_df)}")
-                if len(sensor_df) > 0:
-                    print(f"Esempio primi 3 valori: {sensor_df[focused_sensor].head(3).tolist()}")
+                    stats[sensor] = {'min': 0, 'max': 0, 'mean': 0}
                 
-                return [
-                    html.H3(f"Focus su: {SENSORS[focused_sensor]}", className='mb-3'),
-                    html.Div(style={'height': '500px'}, children=[
-                        dcc.Graph(
-                            id='focus-graph',
-                            figure=create_sensor_graph(sensor_df, focused_sensor, SENSORS[focused_sensor], is_focused=True),
-                            config={
-                                'displayModeBar': True,
-                                'scrollZoom': True  # Abilita zoom con scroll
-                            },
-                            style={'height': '100%'}  # Imposta altezza al 100% del contenitore
-                        )
-                    ]),
-                    html.Button(
-                        'Chiudi focus', 
-                        id='btn-close-focus',
-                        className='btn btn-outline-secondary mt-2',
-                        n_clicks=0
-                    )
-                ]
-            else:
-                return [html.Div(f"Nessun dato valido per {SENSORS[focused_sensor]}", className='alert alert-warning')]
-        else:
-            return [html.Div(f"Sensore {SENSORS[focused_sensor]} non trovato nei dati", className='alert alert-warning')]
-    
+                # Prepara dati per i grafici
+                sensor_df = df.dropna(subset=[sensor])
+                
+                # Campiona se ci sono troppi punti
+                if len(sensor_df) > MAX_POINTS:
+                    indices = np.linspace(0, len(sensor_df) - 1, MAX_POINTS).astype(int)
+                    sensor_df = sensor_df.iloc[indices]
+                
+                # Formatta i dati per Chart.js
+                chart_data[sensor] = {
+                    'timestamps': sensor_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S').tolist(),
+                    'values': sensor_df[sensor].tolist()
+                }
+        
+        return {
+            'stats': stats,
+            'chart_data': chart_data,
+            'data_available': True
+        }
     except Exception as e:
-        print(f"Errore nell'aggiornamento del focus: {e}")
-        import traceback
-        traceback.print_exc()
-        return [html.Div(f"Errore nell'elaborazione dei dati: {str(e)}", className='alert alert-danger')]
+        print(f"Errore nel caricamento o elaborazione dei dati: {e}")
+        return {
+            'stats': {},
+            'chart_data': {},
+            'data_available': False,
+            'error': str(e)
+        }
 
-# Callback per chiudere il focus
-@callback(
-    Output('sensor-focus', 'value'),
-    Input('btn-close-focus', 'n_clicks'),
-    prevent_initial_call=True
-)
-def close_focus(n_clicks):
-    if n_clicks > 0:
-        return None
-    return no_update
+@app.route('/')
+def index():
+    # Ottieni i parametri di data se presenti
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    focused_sensor = request.args.get('focus')
+    
+    # Calcola le date predefinite
+    today = datetime.now().date()
+    date_ranges = {
+        'today': today.isoformat(),
+        'week': (today - timedelta(days=7)).isoformat(),
+        'month': (today - timedelta(days=30)).isoformat()
+    }
+    
+    # Processa i dati
+    data = process_data(start_date, end_date)
+    
+    # Renderizza il template
+    return render_template('index.html', 
+                          sensors=SENSORS,
+                          stats=data['stats'],
+                          chart_data=data['chart_data'],
+                          data_available=data['data_available'],
+                          error=data.get('error', None),
+                          date_ranges=date_ranges,
+                          start_date=start_date or date_ranges['today'],
+                          end_date=end_date or date_ranges['today'],
+                          focused_sensor=focused_sensor)
 
-# Avvio dell'applicazione
 if __name__ == '__main__':
-    app.run_server(debug=True, host='0.0.0.0', port=8050)
+    # Crea la directory templates se non esiste
+    os.makedirs('templates', exist_ok=True)
+    
+    # Crea il template HTML
+    with open('templates/index.html', 'w') as f:
+        f.write("""<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Telemetria</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            height: 250px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .focus-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+        .data-error {
+            padding: 2rem;
+            text-align: center;
+        }
+        body {
+            padding-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid p-4">
+        <h1 class="text-center mb-4">Dashboard Telemetria</h1>
+        
+        {% if data_available %}
+            <!-- Debug info -->
+            <div class="alert alert-info mb-3">
+                {% for sensor, sensor_stats in stats.items() %}
+                    <div>{{ sensors[sensor] }}: Min={{ "%.2f"|format(sensor_stats.min) }}, Max={{ "%.2f"|format(sensor_stats.max) }}, Media={{ "%.2f"|format(sensor_stats.mean) }}</div>
+                {% endfor %}
+                <div class="mt-2 text-muted">Ultimo aggiornamento: {{ now }}</div>
+            </div>
+            
+            <!-- Controlli -->
+            <form class="row mb-4" method="get" action="/">
+                <div class="col-md-6">
+                    <label class="form-label">Seleziona intervallo temporale:</label>
+                    <div class="d-flex flex-wrap">
+                        <input type="date" name="start_date" id="start-date" class="form-control me-2 mb-2" style="max-width: 200px;" value="{{ start_date }}">
+                        <input type="date" name="end_date" id="end-date" class="form-control me-2 mb-2" style="max-width: 200px;" value="{{ end_date }}">
+                        <input type="hidden" name="focus" id="focus-input" value="{{ focused_sensor }}">
+                        <button type="submit" class="btn btn-primary me-2 mb-2">Filtra</button>
+                        <button type="button" id="btn-today" class="btn btn-outline-primary me-2 mb-2">Oggi</button>
+                        <button type="button" id="btn-week" class="btn btn-outline-primary me-2 mb-2">Ultima settimana</button>
+                        <button type="button" id="btn-month" class="btn btn-outline-primary mb-2">Ultimo mese</button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Focus su sensore:</label>
+                    <select id="sensor-focus" class="form-select mb-2" style="max-width: 300px;">
+                        <option value="">Tutti i sensori</option>
+                        {% for id, name in sensors.items() %}
+                            <option value="{{ id }}" {% if id == focused_sensor %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+            
+            {% if focused_sensor %}
+                <!-- Grafico in focus -->
+                <div class="mt-4">
+                    <h3 class="mb-3">Focus su: {{ sensors[focused_sensor] }}</h3>
+                    <div class="focus-container" id="chart-focus"></div>
+                    <button id="btn-close-focus" class="btn btn-outline-secondary mt-2">Chiudi focus</button>
+                </div>
+            {% else %}
+                <!-- Contenitore per i grafici -->
+                <div class="row" id="graphs-container">
+                    {% for sensor_id, sensor_name in sensors.items() %}
+                        {% if sensor_id in chart_data %}
+                            <div class="col-md-6 mb-4">
+                                <div class="chart-container" id="chart-{{ sensor_id }}"></div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            <div class="text-center mt-4">
+                <button id="btn-refresh" class="btn btn-primary">Aggiorna dati</button>
+            </div>
+        {% else %}
+            <div class="alert alert-danger data-error">
+                <h3>Errore durante il caricamento dei dati</h3>
+                {% if error %}
+                    <p>{{ error }}</p>
+                {% else %}
+                    <p>Nessun dato disponibile.</p>
+                {% endif %}
+                <button id="btn-refresh" class="btn btn-primary mt-3">Riprova</button>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const sensors = {{ sensors|tojson }};
+        const chartData = {{ chart_data|tojson }};
+        const dateRanges = {{ date_ranges|tojson }};
+        const focusedSensor = "{{ focused_sensor }}";
+        let charts = {};
+        
+        // Funzione per creare un grafico
+        function createChart(containerId, sensorId, sensorName, isFocus = false) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const data = chartData[sensorId];
+            if (!data || data.timestamps.length === 0) {
+                container.innerHTML = `<div class="alert alert-warning">Nessun dato valido per ${sensorName}</div>`;
+                return;
+            }
+            
+            // Crea canvas se non esiste
+            let canvas = container.querySelector('canvas');
+            if (!canvas) {
+                canvas = document.createElement('canvas');
+                container.innerHTML = '';
+                container.appendChild(canvas);
+            }
+            
+            // Crea configurazione grafico
+            const chartConfig = {
+                type: 'line',
+                data: {
+                    labels: data.timestamps,
+                    datasets: [{
+                        label: sensorName,
+                        data: data.values,
+                        borderColor: '#17a2b8',
+                        borderWidth: 2,
+                        pointRadius: isFocus ? 2 : 0,
+                        pointHoverRadius: 5,
+                        tension: 0.1,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0 // Disabilita animazioni per performance
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: sensorName,
+                            font: {
+                                size: 16
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Data'
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                maxTicksLimit: isFocus ? 10 : 6
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: sensorName
+                            },
+                            beginAtZero: false
+                        }
+                    }
+                }
+            };
+            
+            // Crea il grafico
+            const chart = new Chart(canvas, chartConfig);
+            charts[containerId] = chart;
+        }
+        
+        // Configurazione date picker
+        function setupDatePickers() {
+            document.getElementById('btn-today').addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('start-date').value = dateRanges.today;
+                document.getElementById('end-date').value = dateRanges.today;
+                document.querySelector('form').submit();
+            });
+            
+            document.getElementById('btn-week').addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('start-date').value = dateRanges.week;
+                document.getElementById('end-date').value = dateRanges.today;
+                document.querySelector('form').submit();
+            });
+            
+            document.getElementById('btn-month').addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('start-date').value = dateRanges.month;
+                document.getElementById('end-date').value = dateRanges.today;
+                document.querySelector('form').submit();
+            });
+        }
+        
+        // Funzione per gestire il focus selector
+        function setupFocusSelector() {
+            const focusSelector = document.getElementById('sensor-focus');
+            if (focusSelector) {
+                focusSelector.addEventListener('change', () => {
+                    document.getElementById('focus-input').value = focusSelector.value;
+                    document.querySelector('form').submit();
+                });
+            }
+            
+            const closeBtn = document.getElementById('btn-close-focus');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    document.getElementById('focus-input').value = '';
+                    document.querySelector('form').submit();
+                });
+            }
+        }
+        
+        // Funzione di aggiornamento pagina
+        function setupRefreshButton() {
+            const refreshBtn = document.getElementById('btn-refresh');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => {
+                    location.reload();
+                });
+            }
+        }
+        
+        // Inizializzazione all'avvio della pagina
+        document.addEventListener('DOMContentLoaded', () => {
+            if (focusedSensor && chartData[focusedSensor]) {
+                createChart('chart-focus', focusedSensor, sensors[focusedSensor], true);
+            } else {
+                for (const [sensorId, sensorName] of Object.entries(sensors)) {
+                    if (chartData[sensorId]) {
+                        createChart(`chart-${sensorId}`, sensorId, sensorName);
+                    }
+                }
+            }
+            
+            setupDatePickers();
+            setupFocusSelector();
+            setupRefreshButton();
+        });
+    </script>
+</body>
+</html>""")
+    
+    # Jinja2 filter per la data corrente
+    @app.template_filter('now')
+    def template_now(format='%Y-%m-%d\n%H:%M:%S'):
+        return datetime.now().strftime(format)
+    
+    # Avvio dell'applicazione con modalità debug disabilitata
+    app.run(debug=False, host='0.0.0.0', port=8050, threaded=False)
