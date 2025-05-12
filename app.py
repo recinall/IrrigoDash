@@ -49,31 +49,40 @@ def process_data(start_date=None, end_date=None):
         
         for sensor in SENSORS.keys():
             if sensor in df.columns:
-                # Prepara dati per i grafici
-                sensor_df = df.dropna(subset=[sensor])
+                sensor_df = df.dropna(subset=[sensor]).copy()
                 
-                # Calcola statistiche
-                sensor_values = df[sensor].dropna()
-                if not sensor_values.empty:
+                if not sensor_df.empty:
+                    # Campionamento e interpolazione
+                    sensor_df = sensor_df.set_index('timestamp').sort_index()
+                    
+                    # Ricampiona a 1 minuto e interpola linearmente
+                    sensor_df = sensor_df.resample('T').mean()
+                    sensor_df[sensor] = sensor_df[sensor].interpolate(method='linear')
+                    
+                    # Ricostruisce il dataframe
+                    sensor_df = sensor_df.reset_index()
+                    sensor_df = sensor_df.dropna(subset=[sensor])
+                    
+                    # Campiona se necessario
+                    if len(sensor_df) > MAX_POINTS:
+                        indices = np.linspace(0, len(sensor_df) - 1, MAX_POINTS).astype(int)
+                        sensor_df = sensor_df.iloc[indices]
+                    
+                    # Prepara dati per il grafico
+                    chart_data[sensor] = {
+                        'timestamps': sensor_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S').tolist(),
+                        'values': sensor_df[sensor].tolist()
+                    }
+                    
+                    # Calcola statistiche
                     stats[sensor] = {
-                        'min': float(sensor_values.min()),
-                        'max': float(sensor_values.max()),
-                        'mean': float(sensor_values.mean()),
-                        'current': float(sensor_df[sensor].iloc[-1]) if not sensor_df.empty else 0
+                        'min': float(sensor_df[sensor].min()),
+                        'max': float(sensor_df[sensor].max()),
+                        'mean': float(sensor_df[sensor].mean()),
+                        'current': float(sensor_df[sensor].iloc[-1])
                     }
                 else:
                     stats[sensor] = {'min': 0, 'max': 0, 'mean': 0}
-                
-                # Campiona se ci sono troppi punti
-                if len(sensor_df) > MAX_POINTS:
-                    indices = np.linspace(0, len(sensor_df) - 1, MAX_POINTS).astype(int)
-                    sensor_df = sensor_df.iloc[indices]
-                
-                # Formatta i dati per Chart.js
-                chart_data[sensor] = {
-                    'timestamps': sensor_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S').tolist(),
-                    'values': sensor_df[sensor].tolist()
-                }
         
         last_update = df['timestamp'].max() if not df.empty else None
         
@@ -134,6 +143,7 @@ if __name__ == '__main__':
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="60">
     <title>Irrigo Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -239,9 +249,6 @@ if __name__ == '__main__':
                 </div>
             {% endif %}
             
-            <div class="text-center mt-4">
-                <button id="btn-refresh" class="btn btn-primary">Aggiorna dati</button>
-            </div>
         {% else %}
             <div class="alert alert-danger data-error">
                 <h3>Errore durante il caricamento dei dati</h3>
@@ -250,7 +257,6 @@ if __name__ == '__main__':
                 {% else %}
                     <p>Nessun dato disponibile.</p>
                 {% endif %}
-                <button id="btn-refresh" class="btn btn-primary mt-3">Riprova</button>
             </div>
         {% endif %}
     </div>
@@ -391,15 +397,6 @@ if __name__ == '__main__':
             }
         }
         
-        // Funzione di aggiornamento pagina
-        function setupRefreshButton() {
-            const refreshBtn = document.getElementById('btn-refresh');
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', () => {
-                    location.reload();
-                });
-            }
-        }
         
         // Inizializzazione all'avvio della pagina
         document.addEventListener('DOMContentLoaded', () => {
@@ -415,7 +412,6 @@ if __name__ == '__main__':
             
             setupDatePickers();
             setupFocusSelector();
-            setupRefreshButton();
         });
     </script>
 </body>
