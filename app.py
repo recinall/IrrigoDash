@@ -151,6 +151,7 @@ if __name__ == '__main__':
     <meta http-equiv="refresh" content="60">
     <title>Irrigo Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .chart-container {
@@ -218,6 +219,9 @@ if __name__ == '__main__':
                         <input type="date" name="end_date" id="end-date" class="form-control me-2 mb-2" style="max-width: 200px;" value="{{ end_date }}">
                         <input type="hidden" name="focus" id="focus-input" value="{{ focused_sensor }}">
                         <button type="submit" class="btn btn-primary me-2 mb-2">Filtra</button>
+                        <button type="button" id="btn-home" class="btn btn-outline-primary me-2 mb-2">
+                            <i class="bi bi-house-door"></i> Home
+                        </button>
                         <button type="button" id="btn-today" class="btn btn-outline-primary me-2 mb-2">Oggi</button>
                         <button type="button" id="btn-week" class="btn btn-outline-primary me-2 mb-2">Ultima settimana</button>
                         <button type="button" id="btn-month" class="btn btn-outline-primary mb-2">Ultimo mese</button>
@@ -361,6 +365,11 @@ if __name__ == '__main__':
         
         // Configurazione date picker
         function setupDatePickers() {
+            document.getElementById('btn-home').addEventListener('click', (e) => {
+                e.preventDefault();
+                window.location.href = '/'; // Resetta tutti i filtri
+            });
+            
             document.getElementById('btn-today').addEventListener('click', (e) => {
                 e.preventDefault();
                 document.getElementById('start-date').value = dateRanges.today;
