@@ -20,8 +20,13 @@ CSV_PATH = os.path.expanduser('~/telemetria.csv')
 # Massimo numero di punti da visualizzare per sensore
 MAX_POINTS = 300
 
+# Impostazione globale per il campionamento
+ENABLE_SAMPLING = True  # Imposta False per disabilitare il campionamento
+
 # Funzione per caricare e processare i dati
-def process_data(start_date=None, end_date=None, enable_sampling=True):
+def process_data(start_date=None, end_date=None):
+    # Usa direttamente la variabile globale
+    enable_sampling = ENABLE_SAMPLING
     try:
         # Carica il CSV
         df = pd.read_csv(CSV_PATH)
@@ -112,7 +117,6 @@ def index():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     focused_sensor = request.args.get('focus', '')
-    enable_sampling = request.args.get('sampling', 'true').lower() == 'true'
     
     # Calcola le date predefinite
     today = datetime.now().date()
@@ -123,7 +127,7 @@ def index():
     }
     
     # Processa i dati
-    data = process_data(start_date, end_date, enable_sampling)
+    data = process_data(start_date, end_date)
     
     # Renderizza il template
     return render_template('index.html', 
@@ -136,7 +140,6 @@ def index():
                           start_date=start_date or date_ranges['today'],
                           end_date=end_date or date_ranges['today'],
                           focused_sensor=focused_sensor,
-                          enable_sampling=enable_sampling,
                           last_update=data.get('last_update'))
 
 if __name__ == '__main__':
@@ -220,13 +223,6 @@ if __name__ == '__main__':
             <!-- Controlli -->
             <form class="row mb-4" method="get" action="/">
                 <div class="col-md-6">
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" role="switch" id="sampling-switch" 
-                               name="sampling" value="true" {% if enable_sampling %}checked{% endif %}>
-                        <label class="form-check-label" for="sampling-switch">
-                            Campionamento automatico (max 300 punti)
-                        </label>
-                    </div>
                     <label class="form-label">Seleziona intervallo temporale:</label>
                     <div class="d-flex flex-wrap">
                         <input type="date" name="start_date" id="start-date" class="form-control me-2 mb-2" style="max-width: 200px;" value="{{ start_date }}">
