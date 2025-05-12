@@ -351,10 +351,21 @@ if __name__ == '__main__':
                                 display: true,
                                 text: 'Data'
                             },
+                            type: 'time',
+                            time: {
+                                unit: 'hour',
+                                displayFormats: {
+                                    hour: 'HH:mm'
+                                }
+                            },
                             ticks: {
                                 callback: function(value) {
-                                    // Mostra solo l'ora senza secondi
-                                    return value.split(' ')[1].slice(0, 5); 
+                                    try {
+                                        const date = new Date(value);
+                                        return date.toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'});
+                                    } catch {
+                                        return value.split(' ')[1]?.slice(0,5) || value;
+                                    }
                                 },
                                 maxRotation: 30,
                                 minRotation: 30,
