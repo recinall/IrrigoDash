@@ -352,9 +352,22 @@ if __name__ == '__main__':
                                 text: 'Data'
                             },
                             ticks: {
-                                maxRotation: 45,
-                                minRotation: 45,
-                                maxTicksLimit: isFocus ? 10 : 6
+                                callback: function(value) {
+                                    // Mostra solo l'ora senza secondi
+                                    return value.split(' ')[1].slice(0, 5); 
+                                },
+                                maxRotation: 30,
+                                minRotation: 30,
+                                font: {
+                                    size: 10
+                                },
+                                padding: 3,
+                                maxTicksLimit: isFocus ? 8 : 5,
+                                autoSkip: true,
+                                autoSkipPadding: 10
+                            },
+                            grid: {
+                                display: false
                             }
                         },
                         y: {
@@ -362,7 +375,13 @@ if __name__ == '__main__':
                                 display: true,
                                 text: sensorName + ' (' + unit + ')'
                             },
-                            beginAtZero: false
+                            beginAtZero: false,
+                            ticks: {
+                                font: {
+                                    size: 10
+                                },
+                                padding: 5
+                            }
                         }
                     }
                 }
