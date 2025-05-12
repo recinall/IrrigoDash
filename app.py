@@ -354,13 +354,22 @@ if __name__ == '__main__':
                         x: {
                             type: 'time',
                             time: {
-                                parser: 'YYYY-MM-DD HH:mm:ss', // Specifica il formato originale
-                                unit: 'hour',
+                                parser: 'YYYY-MM-DD HH:mm:ss',
+                                unit: (ctx) => {
+                                    const data = ctx.chart.data.datasets[0].data;
+                                    if (!data.length) return 'hour';
+                                    
+                                    const first = new Date(data[0].x);
+                                    const last = new Date(data[data.length-1].x);
+                                    const diffDays = (last - first) / (1000 * 3600 * 24);
+                                    
+                                    return diffDays >= 2 ? 'day' : 'hour';
+                                },
                                 displayFormats: {
                                     hour: 'HH:mm',
-                                    day: 'dd MMM'
+                                    day: 'DD/MM HH:mm'
                                 },
-                                tooltipFormat: 'dd/MM HH:mm'
+                                tooltipFormat: 'dddd D MMMM YYYY [ore] HH:mm'
                             },
                             adapters: {
                                 date: {
@@ -383,7 +392,18 @@ if __name__ == '__main__':
                             },
                             title: {
                                 display: true,
-                                text: 'Data/Ora'
+                                text: ctx => {
+                                    const data = ctx.scale.chart.data.datasets[0].data;
+                                    if (!data.length) return 'Data/Ora';
+                                    
+                                    const first = new Date(data[0].x);
+                                    const last = new Date(data[data.length-1].x);
+                                    
+                                    if (first.toDateString() === last.toDateString()) {
+                                        return 'Ora - ' + first.toLocaleDateString('it-IT');
+                                    }
+                                    return 'Data/Ora';
+                                }
                             }
                         },
                         y: {
