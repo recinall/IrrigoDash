@@ -220,7 +220,7 @@ if __name__ == '__main__':
                         <input type="hidden" name="focus" id="focus-input" value="{{ focused_sensor }}">
                         <button type="submit" class="btn btn-primary me-2 mb-2">Filtra</button>
                         <button type="button" id="btn-home" class="btn btn-outline-primary me-2 mb-2">
-                            <i class="bi bi-house-door"></i> Home
+                            <i class="bi bi-house-door"></i>
                         </button>
                         <button type="button" id="btn-today" class="btn btn-outline-primary me-2 mb-2">Oggi</button>
                         <button type="button" id="btn-week" class="btn btn-outline-primary me-2 mb-2">Ultima settimana</button>
