@@ -280,6 +280,9 @@ if __name__ == '__main__':
         {% endif %}
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/min/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/locale/it.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.1/dist/chartjs-adapter-moment.min.js"></script>
     <script>
         const sensors = {{ sensors|tojson }};
         const chartData = {{ chart_data|tojson }};
@@ -311,10 +314,12 @@ if __name__ == '__main__':
             const chartConfig = {
                 type: 'line',
                 data: {
-                    labels: data.timestamps,
                     datasets: [{
                         label: sensorName,
-                        data: data.values,
+                        data: data.timestamps.map((t, i) => ({
+                            x: t, // Usa direttamente la stringa timestamp
+                            y: data.values[i]
+                        })),
                         borderColor: '#17a2b8',
                         borderWidth: 2,
                         pointRadius: isFocus ? 2 : 0,
@@ -347,38 +352,38 @@ if __name__ == '__main__':
                     },
                     scales: {
                         x: {
-                            title: {
-                                display: true,
-                                text: 'Data'
-                            },
                             type: 'time',
                             time: {
+                                parser: 'YYYY-MM-DD HH:mm:ss', // Specifica il formato originale
                                 unit: 'hour',
                                 displayFormats: {
-                                    hour: 'HH:mm'
+                                    hour: 'HH:mm',
+                                    day: 'dd MMM'
+                                },
+                                tooltipFormat: 'dd/MM HH:mm'
+                            },
+                            adapters: {
+                                date: {
+                                    locale: 'it' // Imposta la localizzazione italiana
                                 }
                             },
                             ticks: {
-                                callback: function(value) {
-                                    try {
-                                        const date = new Date(value);
-                                        return date.toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'});
-                                    } catch {
-                                        return value.split(' ')[1]?.slice(0,5) || value;
-                                    }
-                                },
-                                maxRotation: 30,
-                                minRotation: 30,
+                                source: 'data', // Prende i tick direttamente dai dati
+                                maxRotation: 35,
+                                minRotation: 35,
                                 font: {
                                     size: 10
                                 },
-                                padding: 3,
+                                padding: 5,
                                 maxTicksLimit: isFocus ? 8 : 5,
-                                autoSkip: true,
-                                autoSkipPadding: 10
+                                autoSkip: true
                             },
                             grid: {
                                 display: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Data/Ora'
                             }
                         },
                         y: {
@@ -398,9 +403,18 @@ if __name__ == '__main__':
                 }
             };
             
+            // Diagnostica temporanea
+            console.log('Dati per', sensorId, ':', {
+                timestamps: data.timestamps,
+                values: data.values
+            });
+            
             // Crea il grafico
             const chart = new Chart(canvas, chartConfig);
             charts[containerId] = chart;
+            
+            // Log del grafico creato
+            console.log('Grafico creato in', containerId, ':', chart);
         }
         
         // Configurazione date picker
