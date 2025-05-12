@@ -21,7 +21,7 @@ CSV_PATH = os.path.expanduser('~/telemetria.csv')
 MAX_POINTS = 300
 
 # Funzione per caricare e processare i dati
-def process_data(start_date=None, end_date=None):
+def process_data(start_date=None, end_date=None, enable_sampling=True):
     try:
         # Carica il CSV
         df = pd.read_csv(CSV_PATH)
@@ -68,8 +68,8 @@ def process_data(start_date=None, end_date=None):
                         stats[sensor] = {'min': 0, 'max': 0, 'mean': 0}
                         continue
                     
-                    # Campiona se necessario
-                    if len(sensor_df) > MAX_POINTS:
+                    # Campiona se necessario e se il campionamento è abilitato
+                    if enable_sampling and len(sensor_df) > MAX_POINTS:
                         indices = np.linspace(0, len(sensor_df) - 1, MAX_POINTS).astype(int)
                         sensor_df = sensor_df.iloc[indices]
                     
@@ -112,6 +112,7 @@ def index():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     focused_sensor = request.args.get('focus', '')
+    enable_sampling = request.args.get('sampling', 'true').lower() == 'true'
     
     # Calcola le date predefinite
     today = datetime.now().date()
@@ -122,7 +123,7 @@ def index():
     }
     
     # Processa i dati
-    data = process_data(start_date, end_date)
+    data = process_data(start_date, end_date, enable_sampling)
     
     # Renderizza il template
     return render_template('index.html', 
@@ -135,6 +136,7 @@ def index():
                           start_date=start_date or date_ranges['today'],
                           end_date=end_date or date_ranges['today'],
                           focused_sensor=focused_sensor,
+                          enable_sampling=enable_sampling,
                           last_update=data.get('last_update'))
 
 if __name__ == '__main__':
@@ -171,6 +173,11 @@ if __name__ == '__main__':
         }
         body {
             padding-bottom: 2rem;
+        }
+        .form-switch .form-check-input {
+            width: 3em;
+            margin-left: 0;
+            margin-right: 10px;
         }
     </style>
 </head>
@@ -213,6 +220,13 @@ if __name__ == '__main__':
             <!-- Controlli -->
             <form class="row mb-4" method="get" action="/">
                 <div class="col-md-6">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="sampling-switch" 
+                               name="sampling" value="true" {% if enable_sampling %}checked{% endif %}>
+                        <label class="form-check-label" for="sampling-switch">
+                            Campionamento automatico (max 300 punti)
+                        </label>
+                    </div>
                     <label class="form-label">Seleziona intervallo temporale:</label>
                     <div class="d-flex flex-wrap">
                         <input type="date" name="start_date" id="start-date" class="form-control me-2 mb-2" style="max-width: 200px;" value="{{ start_date }}">
