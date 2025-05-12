@@ -21,7 +21,7 @@ CSV_PATH = os.path.expanduser('~/telemetria.csv')
 MAX_POINTS = 300
 
 # Impostazione globale per il campionamento
-ENABLE_SAMPLING = True  # Imposta False per disabilitare il campionamento
+ENABLE_SAMPLING = False  # Imposta False per disabilitare il campionamento
 
 # Funzione per caricare e processare i dati
 def process_data(start_date=None, end_date=None):
