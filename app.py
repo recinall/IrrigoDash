@@ -56,7 +56,7 @@ def process_data(start_date=None, end_date=None):
                     sensor_df = sensor_df.set_index('timestamp').sort_index()
                     
                     # Ricampiona a 1 minuto e interpola linearmente
-                    sensor_df = sensor_df.resample('T').mean(numeric_only=True)
+                    sensor_df = sensor_df.resample('min').mean(numeric_only=True)
                     sensor_df[sensor] = pd.to_numeric(sensor_df[sensor], errors='coerce').interpolate(method='linear')
                     
                     # Ricostruisce il dataframe
