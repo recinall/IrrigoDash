@@ -388,7 +388,10 @@ if __name__ == '__main__':
                                 autoSkip: true
                             },
                             grid: {
-                                display: false
+                                display: true,
+                                color: 'rgba(0, 0, 0, 0.1)',  // Colore più tenue
+                                borderDash: [5, 5],           // Tratteggio 5px on/5px off
+                                drawTicks: false              // Non disegnare ticks sulla griglia
                             },
                             title: {
                                 display: true,
@@ -417,6 +420,10 @@ if __name__ == '__main__':
                                     size: 10
                                 },
                                 padding: 5
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)', // Griglia più tenue per l'asse Y
+                                borderDash: [3, 3]            // Tratteggio più sottile
                             }
                         }
                     }
