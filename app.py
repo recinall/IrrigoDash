@@ -111,7 +111,7 @@ def index():
     # Ottieni i parametri di data se presenti
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
-    focused_sensor = request.args.get('focus')
+    focused_sensor = request.args.get('focus', '')
     
     # Calcola le date predefinite
     today = datetime.now().date()
@@ -234,7 +234,7 @@ if __name__ == '__main__':
                 </div>
             </form>
             
-            {% if focused_sensor %}
+            {% if focused_sensor and focused_sensor in sensors %}
                 <!-- Grafico in focus -->
                 <div class="mt-4">
                     <h3 class="mb-3">Focus su: {{ sensors[focused_sensor].name }} ({{ sensors[focused_sensor].unit }})</h3>
